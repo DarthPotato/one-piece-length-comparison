@@ -1,4 +1,4 @@
-import { SHOWS, PACKS, ONE_PIECE_DEFAULTS, findShow } from './data.js';
+import { SHOWS, PACKS, ONE_PIECE_DEFAULTS, findShow, SAGAS, sagaFor } from './data.js';
 import { searchShows, showDetails, ONE_PIECE_TVMAZE_ID } from './tvmaze.js';
 
 /* ── State ─────────────────────────────────────────────────────────── */
@@ -215,6 +215,21 @@ function renderFunLine() {
     line.textContent =
       `🎉 Your stack is ${fmtTimes(stack / op)}× One Piece — and unlike One Piece, most of it actually ended.`;
   }
+  $('#fact-line').textContent = pickFact(op, stack);
+}
+
+// One deadpan stat at a time; rotates as the stack changes.
+function pickFact(op, stack) {
+  const n = state.selected.length;
+  const facts = [
+    `Watched nonstop, One Piece is ${fmtTimes(op / 24)} days without sleep. Chopper medically advises against this.`,
+    `At two hours a night, One Piece takes ${fmtTimes(op / 2 / 30.4)} months. There will be new episodes by then. There are always new episodes.`,
+    `One episode per day means finishing in ${fmtTimes(state.op.eps / 365)} years — assuming it ends, which is a bold assumption.`,
+    `Skipping every opening and recap would save you roughly ${fmtHours((state.op.eps * 3) / 60)} hours. You'd still have ${fmtHours(op - (state.op.eps * 3) / 60)} to go.`,
+    n > 0 && `Your average pick runs ${fmtHours(stack / n)} h. One Piece is ${fmtTimes(op / (stack / n))} of those, stacked end to end.`,
+    'The manga is still going after 28 years. The anime is chasing the manga. You would be chasing the anime. Nobody catches anyone.',
+  ].filter(Boolean);
+  return facts[(n + state.op.eps) % facts.length];
 }
 
 /* ── Towers ────────────────────────────────────────────────────────── */
@@ -239,6 +254,10 @@ function renderGrid(maxH, towerPx) {
   }
 }
 
+// Shared px-per-hour scale so hover handlers can convert a pointer Y back
+// into hours (and hours into One Piece episodes).
+const scaleCache = { maxH: 1, towerPx: 1 };
+
 function segTooltipData(s) {
   const h = hoursOf(s);
   const op = opHours();
@@ -254,8 +273,24 @@ function segTooltipData(s) {
   };
 }
 
-function opTooltipData() {
+// Hovering the One Piece tower reads out where on the voyage you are.
+function opTooltipData(clientY) {
   const op = opHours();
+  if (clientY !== undefined) {
+    const rect = $('#op-block').getBoundingClientRect();
+    const hours = Math.max(0, (rect.bottom - clientY) / (scaleCache.towerPx / scaleCache.maxH));
+    const ep = Math.min(state.op.eps, Math.max(1, Math.round((hours * 60) / state.op.min)));
+    return {
+      name: 'One Piece',
+      color: 'var(--op)',
+      value: `≈ episode ${ep.toLocaleString('en-US')}`,
+      lines: [
+        `${sagaFor(ep).name} saga`,
+        `${fmtHours(hours)} h into the voyage (${fmtPct((hours / op) * 100)}%)`,
+        `whole thing: ${fmtHours(op)} h`,
+      ],
+    };
+  }
   return {
     name: 'One Piece',
     color: 'var(--op)',
@@ -299,21 +334,32 @@ function renderTowers() {
   const op = opHours();
   const stack = stackHours();
   const maxH = Math.max(op, stack, 1) * 1.02; // small headroom above the taller side
-  const towerPx = towerHeightPx();
-  const px = (h) => (h / maxH) * towerPx;
+  // reserve space at the top of the plot so the summit flag never overlaps
+  // the tower headers
+  const avail = Math.max(towerHeightPx() - 54, 120);
+  const px = (h) => (h / maxH) * avail;
+  scaleCache.maxH = maxH;
+  scaleCache.towerPx = avail;
 
-  renderGrid(maxH, towerPx);
+  renderGrid(maxH, avail);
 
   $('#op-head-hours').textContent = `${fmtHours(op)} h`;
   $('#stack-head-hours').textContent = `${fmtHours(stack)} h`;
 
-  // One Piece block + "your stack reaches here" marker
+  // One Piece block, saga ticks, summit flag, "your stack reaches here" marker
   const opBlock = $('#op-block');
-  opBlock.style.height = `${px(op)}px`;
+  const opPx = px(op);
+  opBlock.style.height = `${opPx}px`;
   opBlock.setAttribute('aria-label',
     `One Piece: ${state.op.eps.toLocaleString('en-US')} episodes, about ${fmtHours(op)} hours`);
+  $('#op-flag').style.bottom = `${opPx}px`;
+  renderSagaTicks(px, opPx, stack > 0 && stack < op ? px(stack) : -Infinity);
+
   const reach = $('#reach-line');
   if (stack > 0 && stack < op) {
+    const epEquiv = Math.min(state.op.eps, Math.max(1, Math.round((stack * 60) / state.op.min)));
+    reach.querySelector('span').textContent =
+      `your stack ≈ ep ${epEquiv.toLocaleString('en-US')} · ${sagaFor(epEquiv).name}`;
     reach.hidden = false;
     reach.style.bottom = `${px(stack)}px`;
   } else {
@@ -368,6 +414,28 @@ function renderTowers() {
   }
 
   fitSegmentLabels();
+}
+
+// Saga boundary lines etched into the One Piece tower. Labels render only
+// where the next boundary leaves enough room — the tooltip names the rest.
+function renderSagaTicks(px, blockPx, reachY) {
+  const blockEl = $('#op-block');
+  blockEl.querySelectorAll('.saga-tick').forEach((n) => n.remove());
+  const hourOfEp = (ep) => ((ep - 1) * state.op.min) / 60;
+  const ticks = SAGAS.map((s) => ({ ...s, y: px(hourOfEp(s.ep)) }));
+  ticks.forEach((s, i) => {
+    if (s.ep === 1) return; // the baseline is East Blue's start
+    if (s.y > blockPx - 8) return;
+    const tick = el('div', { class: 'saga-tick', 'aria-hidden': 'true' });
+    tick.style.bottom = `${s.y}px`;
+    const ceiling = i + 1 < ticks.length ? Math.min(ticks[i + 1].y, blockPx) : blockPx;
+    // label only when there's room, and never where the reach line's own
+    // label would sit on top of it
+    if (ceiling - s.y >= 24 && Math.abs(s.y - reachY) > 16) {
+      tick.append(el('span', { class: 'saga-label', text: s.name }));
+    }
+    blockEl.append(tick);
+  });
 }
 
 // In-segment labels are selective: only when the text genuinely fits.
@@ -426,7 +494,7 @@ function bindTowerHover() {
   stackTower.addEventListener('focusout', hideTooltip);
 
   const opBlock = $('#op-block');
-  opBlock.addEventListener('pointermove', (e) => showTooltip(opTooltipData(), e.clientX, e.clientY));
+  opBlock.addEventListener('pointermove', (e) => showTooltip(opTooltipData(e.clientY), e.clientX, e.clientY));
   opBlock.addEventListener('pointerleave', hideTooltip);
   opBlock.addEventListener('focusin', () => {
     const r = opBlock.getBoundingClientRect();
@@ -448,7 +516,7 @@ function renderTable() {
     const h = hoursOf(s);
     const swatch = el('span', { class: 'swatch', 'aria-hidden': 'true' });
     swatch.style.background = `var(--cat-${s.color})`;
-    body.append(el('tr', {},
+    const row = el('tr', { draggable: 'true', 'data-uid': s.uid },
       el('td', { class: 'cell-name' },
         swatch,
         el('span', { text: s.name }),
@@ -465,7 +533,9 @@ function renderTable() {
           onclick: () => removeShow(s.uid),
           text: '✕',
         })),
-    ));
+    );
+    bindRowDrag(row);
+    body.append(row);
   }
 
   if (state.selected.length > 0) {
@@ -480,6 +550,40 @@ function renderTable() {
       el('td', {}),
     ));
   }
+}
+
+/* ── Drag to restack ───────────────────────────────────────────────── */
+
+let dragUid = null;
+
+function bindRowDrag(row) {
+  row.addEventListener('dragstart', (e) => {
+    dragUid = row.dataset.uid;
+    e.dataTransfer.effectAllowed = 'move';
+    row.classList.add('dragging');
+  });
+  row.addEventListener('dragend', () => {
+    dragUid = null;
+    row.classList.remove('dragging');
+    document.querySelectorAll('#picks-body .drop-target').forEach((r) => r.classList.remove('drop-target'));
+  });
+  row.addEventListener('dragover', (e) => {
+    if (!dragUid || dragUid === row.dataset.uid) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    row.classList.add('drop-target');
+  });
+  row.addEventListener('dragleave', () => row.classList.remove('drop-target'));
+  row.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const from = state.selected.findIndex((s) => s.uid === dragUid);
+    const to = state.selected.findIndex((s) => s.uid === row.dataset.uid);
+    if (from < 0 || to < 0 || from === to) return;
+    const [moved] = state.selected.splice(from, 1);
+    state.selected.splice(to, 0, moved);
+    persist();
+    renderAll();
+  });
 }
 
 /* ── Search combobox ───────────────────────────────────────────────── */
@@ -633,10 +737,13 @@ function bindSearch() {
 
 /* ── Packs, settings, buttons ──────────────────────────────────────── */
 
+let packsExpanded = false;
+
 function renderPacks() {
   const wrap = $('#packs');
   wrap.replaceChildren();
-  for (const pack of PACKS) {
+  const visible = packsExpanded ? PACKS : PACKS.slice(0, 5);
+  for (const pack of visible) {
     wrap.append(el('button', {
       class: 'chip',
       text: `+ ${pack.label}`,
@@ -644,7 +751,7 @@ function renderPacks() {
         let added = 0;
         for (const id of pack.shows) {
           const s = findShow(id);
-          if (s && pushShow({ id: s.id, name: s.name, years: s.years, eps: s.eps, min: s.min })) added += 1;
+          if (s && pushShow({ id: s.id, name: s.name, years: s.years, eps: s.eps, min: s.min, approx: s.approx })) added += 1;
         }
         persist();
         renderAll();
@@ -652,6 +759,24 @@ function renderPacks() {
       },
     }));
   }
+  if (packsExpanded) {
+    wrap.append(el('button', {
+      class: 'chip chip-dice',
+      text: '🎲 Surprise me',
+      onclick: () => {
+        const pool = SHOWS.filter((s) => !state.selected.some((x) => x.uid === s.id));
+        if (pool.length === 0) return;
+        const s = pool[Math.floor(Math.random() * pool.length)];
+        addShow({ id: s.id, name: s.name, years: s.years, eps: s.eps, min: s.min, approx: s.approx });
+        toast(`The Grand Line provides: ${s.name}.`);
+      },
+    }));
+  }
+  wrap.append(el('button', {
+    class: 'chip',
+    text: packsExpanded ? '− fewer packs' : `+ ${PACKS.length - 5} more packs…`,
+    onclick: () => { packsExpanded = !packsExpanded; renderPacks(); },
+  }));
 }
 
 function bindSettings() {
@@ -716,6 +841,51 @@ async function syncOnePiece() {
   } catch { /* offline — the built-in default stands */ }
 }
 
+/* ── Theme switcher ────────────────────────────────────────────────── */
+
+const THEMES = [
+  ['auto', 'Auto (system)'],
+  ['light', 'Light'],
+  ['dark', 'Dark'],
+  ['wanted', 'Wanted Poster'],
+  ['abyss', 'Abyss'],
+];
+
+function bindTheme() {
+  const btn = $('#theme-btn');
+  const menu = $('#theme-menu');
+
+  const renderMenu = () => {
+    const current = document.documentElement.dataset.theme || 'auto';
+    menu.replaceChildren(...THEMES.map(([id, label]) =>
+      el('li', {
+        role: 'option',
+        'aria-selected': String(id === current),
+        onclick: () => {
+          document.documentElement.dataset.theme = id;
+          localStorage.setItem('op-theme', id);
+          menu.hidden = true;
+          btn.setAttribute('aria-expanded', 'false');
+          renderAll(); // in-fill label inks depend on the palette
+        },
+      },
+      el('span', { text: label }),
+      id === current ? el('span', { class: 'check', text: '✓' }) : '')));
+  };
+
+  btn.addEventListener('click', () => {
+    if (menu.hidden) renderMenu();
+    menu.hidden = !menu.hidden;
+    btn.setAttribute('aria-expanded', String(!menu.hidden));
+  });
+  document.addEventListener('click', (e) => {
+    if (!menu.hidden && !e.target.closest('.menu-wrap')) {
+      menu.hidden = true;
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
 function bindButtons() {
   $('#clear-btn').addEventListener('click', () => {
     if (state.selected.length === 0) return;
@@ -751,9 +921,12 @@ renderPacks();
 bindSearch();
 bindSettings();
 bindButtons();
+bindTheme();
 bindTowerHover();
 renderAll();
 syncOnePiece();
+// Bangers loads async — remeasure the display text once fonts settle.
+if (document.fonts?.ready) document.fonts.ready.then(renderTowers);
 
 let resizeTimer;
 window.addEventListener('resize', () => {
