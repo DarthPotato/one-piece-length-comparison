@@ -20,6 +20,15 @@ GitHub Pages.
 - **Self-updating One Piece count** — the aired-episode count syncs from
   TVMaze on page load (with a built-in fallback when offline). Editing the
   number in Settings pins your own version.
+- **Posters everywhere** — the One Piece tower wears the show's key art and
+  every stacked show gets its own poster tile. Images are hotlinked from
+  TVMaze at runtime (nothing copyrighted lives in this repo) and degrade to
+  solid colors offline.
+- **Saga markers** — the One Piece tower is etched with saga boundaries
+  (Alabasta → Final Saga); hovering reads out the episode + saga at any
+  height, and the reach line shows where your stack lands on the voyage.
+- **Themes** — Auto, Light, Dark, Wanted Poster (parchment), and Abyss
+  (deep sea), persisted per browser.
 - **Preset packs** — one click adds "Prestige TV starter pack", "Anime
   classics", "Fellow giants", etc.
 - **Live comparison** — stat tiles, per-show tooltips, a

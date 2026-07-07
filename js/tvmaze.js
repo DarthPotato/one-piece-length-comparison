@@ -41,5 +41,14 @@ export async function showDetails(tvmazeId) {
     min: d.averageRuntime || median || 30,
     approx: true,
     years: from ? (to ? (to === from ? from : `${from}–${to.slice(2)}`) : `${from}–`) : '',
+    img: d.image?.medium || null,
+    imgLarge: d.image?.original || d.image?.medium || null,
   };
+}
+
+// Resolve a poster for a show we know by IMDb id (the built-in list).
+// TVMaze redirects the lookup straight to the show record.
+export async function lookupByImdb(imdb) {
+  const d = await get(`/lookup/shows?imdb=${encodeURIComponent(imdb)}`);
+  return { tvmazeId: d.id, img: d.image?.medium || d.image?.original || null };
 }

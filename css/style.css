@@ -47,7 +47,7 @@
   --cat-4: #4a3aa7;
   --cat-5: #e87ba4;
   --cat-6: #eb6834;
-  --tower-h: clamp(340px, 58vh, 600px);
+  --tower-h: clamp(480px, 84vh, 920px);
   --display-font: 'Bangers', 'Arial Black', system-ui, sans-serif;
   color-scheme: light;
 }
@@ -452,7 +452,16 @@ button {
   padding-right: 2px;
 }
 
-.tower-col { flex: 0 1 240px; min-width: 130px; position: relative; z-index: 1; }
+/* bottom-justified so a wrapped header never pushes a tower's baseline down */
+.tower-col {
+  flex: 0 1 310px;
+  min-width: 135px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
 
 .tower-head {
   display: flex;
@@ -476,10 +485,13 @@ button {
   border-bottom: 1px solid var(--baseline);
 }
 
-/* One Piece: a wash, not a saturated slab — with a solid data-end cap */
+/* One Piece: the show's own key art (fetched at runtime), tinted; falls
+   back to a red wash when offline. Solid data-end cap either way. */
 #op-block {
   position: relative;
-  background: color-mix(in srgb, var(--op) 20%, var(--surface));
+  background-color: color-mix(in srgb, var(--op) 20%, var(--surface));
+  background-size: cover;
+  background-position: center 18%;
   border-radius: 4px 4px 0 0;
   transition: height 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
   overflow: hidden; /* clips saga ticks while the block animates */
@@ -515,6 +527,18 @@ button {
   opacity: 0.8;
   letter-spacing: 0.02em;
   white-space: nowrap;
+}
+
+/* on the poster, labels ride surface-colored chips and ticks lighten */
+#op-block.has-img .saga-tick { background: color-mix(in srgb, var(--surface) 55%, transparent); }
+
+#op-block.has-img .saga-label {
+  bottom: 3px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  color: var(--ink);
+  opacity: 1;
 }
 
 /* the flag planted on the summit */
@@ -568,12 +592,21 @@ button {
 }
 
 .seg {
-  background: var(--seg-c);
+  background-color: var(--seg-c);
+  background-size: cover;
+  background-position: center 18%;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: height 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
   flex-shrink: 0;
+}
+
+.seg.has-img .seg-label {
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  color: var(--ink);
 }
 
 .seg:first-child { border-radius: 4px 4px 0 0; } /* rounded data-end at the top of the pile */
@@ -738,6 +771,6 @@ footer a { color: var(--ink-2); }
   .vs { left: calc(50% + 22px); }
   #op-flag { width: 44px; height: 44px; }
   #op-flag svg { width: 44px; height: 44px; }
-  .saga-label { display: none; }
-  :root { --tower-h: clamp(300px, 52vh, 420px); }
+  .saga-label { font-size: 8.5px; right: 4px; }
+  :root { --tower-h: clamp(380px, 66vh, 640px); }
 }

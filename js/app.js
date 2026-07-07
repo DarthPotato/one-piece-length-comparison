@@ -1,5 +1,10 @@
 import { SHOWS, PACKS, ONE_PIECE_DEFAULTS, findShow, SAGAS, sagaFor } from './data.js';
-import { searchShows, showDetails, ONE_PIECE_TVMAZE_ID } from './tvmaze.js';
+import { searchShows, showDetails, lookupByImdb, ONE_PIECE_TVMAZE_ID } from './tvmaze.js';
+
+// Posters are hotlinked from TVMaze at runtime — never committed to the repo.
+const POSTER_ORIGIN = /^https:\/\/static\.tvmaze\.com\//;
+let opPoster = localStorage.getItem('op-poster') || '';
+if (opPoster && !POSTER_ORIGIN.test(opPoster)) opPoster = '';
 
 /* ── State ─────────────────────────────────────────────────────────── */
 
@@ -166,6 +171,42 @@ function addShow(show) {
   }
   persist();
   renderAll();
+  fillPosters();
+}
+
+/* ── Posters ───────────────────────────────────────────────────────────
+   Fetched lazily, one at a time (TVMaze rate limits per visitor IP).
+   img === undefined → not tried yet; null → tried, none available. */
+
+const posterFailed = new Set(); // session-only, so transient errors retry next visit
+let posterQueueRunning = false;
+
+async function fillPosters() {
+  if (posterQueueRunning) return;
+  posterQueueRunning = true;
+  try {
+    for (;;) {
+      const entry = state.selected.find((s) => s.img === undefined && !posterFailed.has(s.uid));
+      if (!entry) break;
+      try {
+        let img = null;
+        const imdb = entry.id || entry.imdb;
+        if (imdb && imdb.startsWith('tt')) {
+          ({ img } = await lookupByImdb(imdb));
+        } else if (entry.tvmazeId) {
+          ({ img } = await showDetails(entry.tvmazeId));
+        }
+        entry.img = img && POSTER_ORIGIN.test(img) ? img : null;
+        persist();
+        renderAll();
+      } catch {
+        posterFailed.add(entry.uid);
+      }
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  } finally {
+    posterQueueRunning = false;
+  }
 }
 
 function removeShow(uid) {
@@ -215,21 +256,47 @@ function renderFunLine() {
     line.textContent =
       `🎉 Your stack is ${fmtTimes(stack / op)}× One Piece — and unlike One Piece, most of it actually ended.`;
   }
-  $('#fact-line').textContent = pickFact(op, stack);
+  renderFactLine(op, stack);
 }
 
-// One deadpan stat at a time; rotates as the stack changes.
-function pickFact(op, stack) {
+// One deadpan stat at a time. Randomized (no immediate repeats), re-rolled
+// whenever the stack actually changes — not on theme flips or resizes.
+let lastFactSig = null;
+let lastFactIdx = -1;
+let lastFact = '';
+
+function renderFactLine(op, stack) {
+  const sig = `${state.selected.map((s) => s.uid).join('|')}~${state.op.eps}~${state.op.movies}`;
+  if (sig !== lastFactSig) {
+    const facts = buildFacts(op, stack);
+    let idx = Math.floor(Math.random() * facts.length);
+    if (facts.length > 1 && idx === lastFactIdx) idx = (idx + 1) % facts.length;
+    lastFactSig = sig;
+    lastFactIdx = idx;
+    lastFact = facts[idx];
+  }
+  $('#fact-line').textContent = lastFact;
+}
+
+function buildFacts(op, stack) {
   const n = state.selected.length;
-  const facts = [
+  return [
     `Watched nonstop, One Piece is ${fmtTimes(op / 24)} days without sleep. Chopper medically advises against this.`,
     `At two hours a night, One Piece takes ${fmtTimes(op / 2 / 30.4)} months. There will be new episodes by then. There are always new episodes.`,
     `One episode per day means finishing in ${fmtTimes(state.op.eps / 365)} years — assuming it ends, which is a bold assumption.`,
     `Skipping every opening and recap would save you roughly ${fmtHours((state.op.eps * 3) / 60)} hours. You'd still have ${fmtHours(op - (state.op.eps * 3) / 60)} to go.`,
-    n > 0 && `Your average pick runs ${fmtHours(stack / n)} h. One Piece is ${fmtTimes(op / (stack / n))} of those, stacked end to end.`,
     'The manga is still going after 28 years. The anime is chasing the manga. You would be chasing the anime. Nobody catches anyone.',
+    'Episode one aired before Wikipedia existed. You could have read all of Wikipedia by now. All of it.',
+    'One Piece has been airing across five US presidencies and at least three of your major life phases.',
+    `Watching 8 hours a day, it's a full-time job for ${fmtTimes(op / 40)} weeks. The pay is worse, but there's a talking reindeer.`,
+    `Roughly 480 hours gets you conversational Japanese. Same budget — and then you'd stop needing subtitles for everything else on this page.`,
+    `Luffy yells attack names for an estimated 2% of the runtime. That's ${fmtHours(op * 0.02)} hours of yelling. (Estimate. Vibes-based.)`,
+    n > 0 && `Your average pick runs ${fmtHours(stack / n)} h. One Piece is ${fmtTimes(op / (stack / n))} of those, stacked end to end.`,
+    n > 0 && stack < op &&
+      `Finish your entire stack and you'd still have ${fmtHours(op - stack)} hours left over — a language, an instrument, or one (1) personality overhaul.`,
+    n > 0 && stack >= op &&
+      `You've assembled ${fmtTimes(stack / op)} One Pieces worth of television that (mostly) respects your time.`,
   ].filter(Boolean);
-  return facts[(n + state.op.eps) % facts.length];
 }
 
 /* ── Towers ────────────────────────────────────────────────────────── */
@@ -352,6 +419,10 @@ function renderTowers() {
   opBlock.style.height = `${opPx}px`;
   opBlock.setAttribute('aria-label',
     `One Piece: ${state.op.eps.toLocaleString('en-US')} episodes, about ${fmtHours(op)} hours`);
+  opBlock.classList.toggle('has-img', !!opPoster);
+  opBlock.style.backgroundImage = opPoster
+    ? `linear-gradient(color-mix(in srgb, var(--op) 22%, transparent), color-mix(in srgb, var(--op) 22%, transparent)), url("${opPoster}")`
+    : '';
   $('#op-flag').style.bottom = `${opPx}px`;
   renderSagaTicks(px, opPx, stack > 0 && stack < op ? px(stack) : -Infinity);
 
@@ -400,6 +471,10 @@ function renderTowers() {
     const h = hoursOf(s);
     const target = Math.max(px(h) - (stack > 0 ? gapTotal * (h / stack) : 0), 3); // 3px visual floor
     node.style.setProperty('--seg-c', `var(--cat-${s.color})`);
+    node.classList.toggle('has-img', !!s.img);
+    node.style.backgroundImage = s.img
+      ? `linear-gradient(color-mix(in srgb, var(--seg-c) 34%, transparent), color-mix(in srgb, var(--seg-c) 34%, transparent)), url("${s.img}")`
+      : '';
     node.dataset.target = target;
     node.setAttribute('aria-label',
       `${s.name}: about ${fmtHours(h)} hours, ${fmtPct((h / opHours()) * 100)}% of One Piece`);
@@ -447,8 +522,10 @@ function fitSegmentLabels() {
       const label = node.querySelector('.seg-label');
       if (!s || !label) continue;
       const target = parseFloat(node.dataset.target || '0');
+      // On a poster the label sits on a surface-colored chip (CSS); on a
+      // solid fill pick whichever of black/white contrasts more.
       const fill = cssVar(`--cat-${s.color}`);
-      label.style.color = fill ? inkFor(fill) : '';
+      label.style.color = s.img ? '' : (fill ? inkFor(fill) : '');
       if (target < 22) { label.hidden = true; continue; }
       const avail = node.clientWidth - 16;
       label.hidden = false;
@@ -640,12 +717,13 @@ function renderResults() {
           const d = await showDetails(r.tvmazeId);
           // Prefer the built-in entry when TVMaze maps to one — better runtimes.
           const local = d.imdb && findShow(d.imdb);
+          const img = d.img && POSTER_ORIGIN.test(d.img) ? d.img : undefined;
           if (local) {
-            addShow({ id: local.id, name: local.name, years: local.years, eps: local.eps, min: local.min, approx: local.approx });
+            addShow({ id: local.id, name: local.name, years: local.years, eps: local.eps, min: local.min, approx: local.approx, img });
           } else if (!d.eps) {
             toast('TVMaze has no aired episodes listed for that one.');
           } else {
-            addShow({ tvmazeId: d.tvmazeId, imdb: d.imdb, name: d.name, years: d.years, eps: d.eps, min: d.min, approx: d.approx });
+            addShow({ tvmazeId: d.tvmazeId, imdb: d.imdb, name: d.name, years: d.years, eps: d.eps, min: d.min, approx: d.approx, img: img ?? null });
           }
         } catch {
           toast('TVMaze lookup failed — maybe offline?');
@@ -755,6 +833,7 @@ function renderPacks() {
         }
         persist();
         renderAll();
+        fillPosters();
         toast(added > 0 ? `Added ${added} show${added === 1 ? '' : 's'}.` : 'Those are all on the pile already.');
       },
     }));
@@ -828,16 +907,22 @@ function bindSettings() {
 // Keep the episode count current without anyone lifting a finger — unless
 // the user pinned their own numbers.
 async function syncOnePiece() {
-  if (state.op.custom) return;
   try {
     const d = await showDetails(ONE_PIECE_TVMAZE_ID);
-    if (d.eps > 0 && d.eps !== state.op.eps) {
+    let changed = false;
+    if (d.imgLarge && POSTER_ORIGIN.test(d.imgLarge) && d.imgLarge !== opPoster) {
+      opPoster = d.imgLarge;
+      localStorage.setItem('op-poster', opPoster);
+      changed = true;
+    }
+    if (!state.op.custom && d.eps > 0 && d.eps !== state.op.eps) {
       state.op.eps = d.eps;
       const epsInput = $('#op-eps');
       if (epsInput) epsInput.value = d.eps;
       persist();
-      renderAll();
+      changed = true;
     }
+    if (changed) renderAll();
   } catch { /* offline — the built-in default stands */ }
 }
 
@@ -925,6 +1010,7 @@ bindTheme();
 bindTowerHover();
 renderAll();
 syncOnePiece();
+fillPosters();
 // Bangers loads async — remeasure the display text once fonts settle.
 if (document.fonts?.ready) document.fonts.ready.then(renderTowers);
 
