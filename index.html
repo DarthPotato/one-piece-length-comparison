@@ -54,15 +54,12 @@
         <input id="op-movies" type="checkbox" />
         Include the 15 films (+~24 h)
       </label>
-      <label class="field">
-        TMDB API key <span>(optional — unlocks searching any show; stored only in this browser)</span>
-        <input id="tmdb-key" type="password" autocomplete="off" placeholder="v3 key or v4 read token" />
-      </label>
-      <button id="op-sync" class="ghost-btn">Sync One Piece episode count from TMDB</button>
+      <button id="op-sync" class="ghost-btn">Re-sync episode count from TVMaze</button>
       <p class="field-note">
-        Built-in runtimes are approximate averages. With a TMDB key, search results
-        come from TMDB; runtime falls back to the latest episode's length when TMDB
-        doesn't list an average (marked with ≈).
+        The episode count syncs from TVMaze automatically on load; editing a number
+        pins your version. The built-in list is the top 1,000 shows by IMDb vote
+        count — anything else is searched live on TVMaze, whose runtimes are often
+        broadcast-slot lengths (marked with ≈).
       </p>
     </section>
 
@@ -135,8 +132,9 @@
     <footer>
       <p>
         Episode counts and runtimes are approximate — this is a bit, not a database.
-        Optional search powered by <a href="https://www.themoviedb.org/" rel="noopener">TMDB</a>;
-        this product uses the TMDB API but is not endorsed or certified by TMDB.
+        Built-in list: information courtesy of <a href="https://www.imdb.com" rel="noopener">IMDb</a>,
+        used with permission. Live search and episode data by
+        <a href="https://www.tvmaze.com" rel="noopener">TVMaze</a> (CC BY-SA).
       </p>
     </footer>
   </div>

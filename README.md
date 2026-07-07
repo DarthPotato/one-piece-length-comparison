@@ -5,25 +5,26 @@ A tiny static web app that makes One Piece's runtime (~470 hours and counting)
 you stack up other shows on the other side and watch your pile climb toward —
 and past — it.
 
-**No build step, no backend, no dependencies.** Plain HTML/CSS/JS, made for
+**No build step, no backend, no API keys.** Plain HTML/CSS/JS, made for
 GitHub Pages.
 
 ## Features
 
-- **Curated dataset** of ~130 shows (prestige drama, sitcoms, anime, minis,
-  docs) with approximate episode counts and runtimes — works fully offline,
-  no API key needed.
+- **Built-in list of the top 1,000 TV shows** (by IMDb vote count) with
+  episode counts and average runtimes — ~90 KB of static JSON-ish data,
+  searched instantly in the browser, works offline.
+- **Live search for everything else** via the [TVMaze API](https://www.tvmaze.com/api) —
+  free, keyless, CORS-open, so every visitor can search any show without
+  anyone providing credentials. TVMaze runtimes are often broadcast-slot
+  lengths, so they're marked approximate (≈).
+- **Self-updating One Piece count** — the aired-episode count syncs from
+  TVMaze on page load (with a built-in fallback when offline). Editing the
+  number in Settings pins your own version.
 - **Preset packs** — one click adds "Prestige TV starter pack", "Anime
   classics", "Fellow giants", etc.
-- **Optional TMDB search** — paste a [TMDB API key](https://www.themoviedb.org/settings/api)
-  into Settings to search any show on Earth. The key lives only in your
-  browser's localStorage; it is never part of the deployed site. Both v3 keys
-  and v4 read tokens work.
 - **Live comparison** — stat tiles, per-show tooltips, a
   "your stack reaches here" marker on the One Piece tower, and a full table
   of the receipts.
-- **Adjustable assumptions** — One Piece keeps airing, so the episode count is
-  editable (or synced from TMDB), and you can throw in the 15 films.
 - **Share links** — "Copy link" encodes your stack in the URL hash.
 - Light and dark mode (follows your system), keyboard-accessible, respects
   reduced motion.
@@ -47,18 +48,28 @@ ES modules.)
    **Deploy from a branch**, pick your default branch and `/ (root)`.
 3. Done. The site appears at `https://<user>.github.io/<repo>/`.
 
-## Tweaking the data
+## The data
 
-Everything lives in [`js/data.js`](js/data.js):
+- `js/shows.js` — auto-generated top-1,000 list. Rebuild it whenever you like:
 
-- `ONE_PIECE_DEFAULTS` — default episode count / runtime for One Piece.
-- `SHOWS` — the curated list (`eps` × `min` is all that matters).
-- `PACKS` — the one-click preset bundles.
+  ```sh
+  # grab the three IMDb non-commercial datasets (https://datasets.imdbws.com/)
+  mkdir -p /tmp/imdb && cd /tmp/imdb
+  curl -sSO https://datasets.imdbws.com/title.ratings.tsv.gz
+  curl -sSO https://datasets.imdbws.com/title.basics.tsv.gz
+  curl -sSO https://datasets.imdbws.com/title.episode.tsv.gz
 
-Counts and runtimes are deliberately approximate averages — this is a bit,
-not a database.
+  python3 scripts/build_dataset.py /tmp/imdb
+  ```
+
+  Show ids are IMDb tconsts, so share links stay valid across rebuilds.
+
+- `js/data.js` — One Piece defaults and the preset packs.
+- Counts and runtimes are deliberately approximate averages — this is a bit,
+  not a database.
 
 ## Credits
 
-Optional search powered by [TMDB](https://www.themoviedb.org/). This product
-uses the TMDB API but is not endorsed or certified by TMDB.
+Built-in list: information courtesy of [IMDb](https://www.imdb.com). Used with
+permission (IMDb non-commercial datasets). Live search and episode data by
+[TVMaze](https://www.tvmaze.com) (CC BY-SA).

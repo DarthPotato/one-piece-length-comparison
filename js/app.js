@@ -1,21 +1,19 @@
 import { SHOWS, PACKS, ONE_PIECE_DEFAULTS, findShow } from './data.js';
-import { searchTv, tvDetails } from './tmdb.js';
+import { searchShows, showDetails, ONE_PIECE_TVMAZE_ID } from './tvmaze.js';
 
 /* ── State ─────────────────────────────────────────────────────────── */
 
 const STORE_KEY = 'op-compare-v1';
-const TMDB_KEY_STORE = 'op-compare-tmdb-key';
 
 // Stack colors: the categorical order minus red, which One Piece owns.
 const STACK_SLOTS = 7;
 
 const state = {
-  selected: [], // { uid, id?, tmdbId?, name, years, eps, min, approx, color }
+  selected: [], // { uid, id?, tvmazeId?, name, years, eps, min, approx, color }
   colorCounter: 0,
-  op: { eps: ONE_PIECE_DEFAULTS.eps, min: ONE_PIECE_DEFAULTS.min, movies: false },
+  // custom = the user pinned their own numbers; skip the TVMaze auto-sync.
+  op: { eps: ONE_PIECE_DEFAULTS.eps, min: ONE_PIECE_DEFAULTS.min, movies: false, custom: false },
 };
-
-let tmdbKey = localStorage.getItem(TMDB_KEY_STORE) || '';
 
 function persist() {
   try {
@@ -76,6 +74,8 @@ function applySnapshot(snap) {
     if (eps > 0) state.op.eps = Math.floor(eps);
     if (min > 0) state.op.min = Math.floor(min);
     state.op.movies = !!movies;
+    // A shared link pins its One Piece numbers so both people see the same chart.
+    state.op.custom = true;
   }
 }
 
@@ -146,7 +146,9 @@ function toast(msg) {
 /* ── Selection ─────────────────────────────────────────────────────── */
 
 function pushShow(show) {
-  const uid = show.id || `t${show.tmdbId ?? Math.random().toString(36).slice(2, 8)}`;
+  // Entries restored from a share link may carry no id at all — key on name.
+  const uid = show.id || show.imdb
+    || (show.tvmazeId ? `tv${show.tvmazeId}` : `x-${show.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
   if (state.selected.some((s) => s.uid === uid)) return false;
   state.selected.push({
     uid,
@@ -483,10 +485,11 @@ function renderTable() {
 /* ── Search combobox ───────────────────────────────────────────────── */
 
 let activeIndex = -1;
-let tmdbTimer = null;
-let tmdbResults = [];
-let tmdbStatus = ''; // '', 'loading', 'error'
+let mazeTimer = null;
+let mazeResults = [];
+let mazeStatus = ''; // '', 'loading', 'error'
 
+// SHOWS is sorted by vote count, so each group is already popularity-ranked.
 function localMatches(q) {
   const norm = q.toLowerCase();
   const starts = [];
@@ -496,7 +499,7 @@ function localMatches(q) {
     if (name.startsWith(norm)) starts.push(s);
     else if (name.includes(norm)) contains.push(s);
   }
-  return [...starts, ...contains].slice(0, 7);
+  return [...starts, ...contains].slice(0, 6);
 }
 
 function renderResults() {
@@ -507,38 +510,48 @@ function renderResults() {
   if (q.length < 2) { list.hidden = true; return; }
 
   const rows = [];
+  const shownLocal = new Set();
   for (const s of localMatches(q)) {
+    shownLocal.add(s.id);
     const added = state.selected.some((x) => x.uid === s.id);
     rows.push({
       key: s.id,
       added,
       main: s.name,
       meta: `${s.years} · ${s.eps.toLocaleString('en-US')} eps × ${s.min} min ≈ ${fmtHours(hoursOf(s))} h`,
-      pick: () => addShow({ id: s.id, name: s.name, years: s.years, eps: s.eps, min: s.min }),
+      pick: () => addShow({ id: s.id, name: s.name, years: s.years, eps: s.eps, min: s.min, approx: s.approx }),
     });
   }
-  for (const r of tmdbResults) {
-    const added = state.selected.some((x) => x.uid === `t${r.tmdbId}`);
+  for (const r of mazeResults) {
+    if (r.imdb && shownLocal.has(r.imdb)) continue; // already listed from the built-in set
+    const added = state.selected.some((x) => x.uid === (r.imdb || `tv${r.tvmazeId}`));
     rows.push({
-      key: `t${r.tmdbId}`,
+      key: `tv${r.tvmazeId}`,
       added,
-      badge: 'TMDB',
+      badge: 'TVMaze',
       main: r.name,
       meta: r.year || '',
       pick: async () => {
         try {
-          const d = await tvDetails(r.tmdbId, tmdbKey);
-          if (!d.eps) { toast('TMDB has no episode data for that one.'); return; }
-          addShow({ tmdbId: d.tmdbId, name: d.name, years: d.years, eps: d.eps, min: d.min, approx: d.approx });
+          const d = await showDetails(r.tvmazeId);
+          // Prefer the built-in entry when TVMaze maps to one — better runtimes.
+          const local = d.imdb && findShow(d.imdb);
+          if (local) {
+            addShow({ id: local.id, name: local.name, years: local.years, eps: local.eps, min: local.min, approx: local.approx });
+          } else if (!d.eps) {
+            toast('TVMaze has no aired episodes listed for that one.');
+          } else {
+            addShow({ tvmazeId: d.tvmazeId, imdb: d.imdb, name: d.name, years: d.years, eps: d.eps, min: d.min, approx: d.approx });
+          }
         } catch {
-          toast('TMDB lookup failed — check your key or connection.');
+          toast('TVMaze lookup failed — maybe offline?');
         }
       },
     });
   }
 
-  if (rows.length === 0 && tmdbStatus !== 'loading') {
-    list.append(el('li', { class: 'result-note', role: 'presentation', text: tmdbKey ? 'No matches.' : 'No matches. Add a TMDB key in Settings to search everything.' }));
+  if (rows.length === 0 && mazeStatus !== 'loading') {
+    list.append(el('li', { class: 'result-note', role: 'presentation', text: 'No matches.' }));
   }
   rows.forEach((r, i) => {
     const item = el('li', {
@@ -556,10 +569,10 @@ function renderResults() {
     }
     list.append(item);
   });
-  if (tmdbStatus === 'loading') {
-    list.append(el('li', { class: 'result-note', role: 'presentation', text: 'Searching TMDB…' }));
-  } else if (tmdbStatus === 'error') {
-    list.append(el('li', { class: 'result-note', role: 'presentation', text: 'TMDB search failed — check your key.' }));
+  if (mazeStatus === 'loading') {
+    list.append(el('li', { class: 'result-note', role: 'presentation', text: 'Searching TVMaze…' }));
+  } else if (mazeStatus === 'error') {
+    list.append(el('li', { class: 'result-note', role: 'presentation', text: 'TVMaze search failed — maybe offline?' }));
   }
   list.hidden = false;
   $('#search').setAttribute('aria-expanded', 'true');
@@ -585,21 +598,21 @@ function bindSearch() {
   const input = $('#search');
   input.addEventListener('input', () => {
     const q = input.value.trim();
-    tmdbResults = [];
-    tmdbStatus = '';
+    mazeResults = [];
+    mazeStatus = '';
     renderResults();
-    clearTimeout(tmdbTimer);
-    if (tmdbKey && q.length >= 2) {
-      tmdbStatus = 'loading';
+    clearTimeout(mazeTimer);
+    if (q.length >= 2) {
+      mazeStatus = 'loading';
       renderResults();
-      tmdbTimer = setTimeout(async () => {
+      mazeTimer = setTimeout(async () => {
         try {
-          const results = await searchTv(q, tmdbKey);
+          const results = await searchShows(q);
           if (input.value.trim() !== q) return; // stale response
-          tmdbResults = results;
-          tmdbStatus = '';
+          mazeResults = results;
+          mazeStatus = '';
         } catch {
-          tmdbStatus = 'error';
+          mazeStatus = 'error';
         }
         renderResults();
       }, 350);
@@ -652,47 +665,55 @@ function bindSettings() {
   const epsInput = $('#op-eps');
   const minInput = $('#op-min');
   const moviesInput = $('#op-movies');
-  const keyInput = $('#tmdb-key');
   epsInput.value = state.op.eps;
   minInput.value = state.op.min;
   moviesInput.checked = state.op.movies;
-  keyInput.value = tmdbKey;
 
   epsInput.addEventListener('change', () => {
     const v = parseInt(epsInput.value, 10);
-    if (v > 0) { state.op.eps = v; persist(); renderAll(); }
+    if (v > 0) { state.op.eps = v; state.op.custom = true; persist(); renderAll(); }
   });
   minInput.addEventListener('change', () => {
     const v = parseInt(minInput.value, 10);
-    if (v > 0) { state.op.min = v; persist(); renderAll(); }
+    if (v > 0) { state.op.min = v; state.op.custom = true; persist(); renderAll(); }
   });
   moviesInput.addEventListener('change', () => {
     state.op.movies = moviesInput.checked;
     persist();
     renderAll();
   });
-  keyInput.addEventListener('change', () => {
-    tmdbKey = keyInput.value.trim();
-    if (tmdbKey) localStorage.setItem(TMDB_KEY_STORE, tmdbKey);
-    else localStorage.removeItem(TMDB_KEY_STORE);
-    toast(tmdbKey ? 'TMDB key saved (stays in this browser).' : 'TMDB key removed.');
-  });
 
   $('#op-sync').addEventListener('click', async () => {
-    if (!tmdbKey) { toast('Add a TMDB key first.'); return; }
     try {
-      const d = await tvDetails(ONE_PIECE_DEFAULTS.tmdbId, tmdbKey);
+      const d = await showDetails(ONE_PIECE_TVMAZE_ID);
       if (d.eps > 0) {
         state.op.eps = d.eps;
+        state.op.custom = false; // back on auto-sync
         epsInput.value = d.eps;
         persist();
         renderAll();
-        toast(`TMDB says ${d.eps.toLocaleString('en-US')} episodes. Yep. Still going.`);
+        toast(`TVMaze says ${d.eps.toLocaleString('en-US')} episodes aired. Yep. Still going.`);
       }
     } catch {
-      toast('Could not reach TMDB — check your key.');
+      toast('Could not reach TVMaze — using the built-in count.');
     }
   });
+}
+
+// Keep the episode count current without anyone lifting a finger — unless
+// the user pinned their own numbers.
+async function syncOnePiece() {
+  if (state.op.custom) return;
+  try {
+    const d = await showDetails(ONE_PIECE_TVMAZE_ID);
+    if (d.eps > 0 && d.eps !== state.op.eps) {
+      state.op.eps = d.eps;
+      const epsInput = $('#op-eps');
+      if (epsInput) epsInput.value = d.eps;
+      persist();
+      renderAll();
+    }
+  } catch { /* offline — the built-in default stands */ }
 }
 
 function bindButtons() {
@@ -732,6 +753,7 @@ bindSettings();
 bindButtons();
 bindTowerHover();
 renderAll();
+syncOnePiece();
 
 let resizeTimer;
 window.addEventListener('resize', () => {

@@ -1,196 +1,48 @@
-// Curated show dataset — no API needed.
-// Episode counts and runtimes are approximate (averages over a show's run).
-// eps = aired episodes, min = average minutes per episode.
+// The built-in show list lives in shows.js (auto-generated, top ~1000 TV
+// series by IMDb vote count — rebuild with scripts/build_dataset.py).
+import { SHOWS } from './shows.js';
+
+export { SHOWS };
 
 export const ONE_PIECE_DEFAULTS = {
-  eps: 1175,       // aired episodes as of mid-2026 — editable in Settings, still airing
+  eps: 1175,       // fallback when TVMaze is unreachable — synced live on load
   min: 24,         // average minutes per episode
   moviesMinutes: 1425, // the 15 films, ~95 min each
   movieCount: 15,
-  tmdbId: 37854,
 };
 
-export const SHOWS = [
-  // ── Prestige drama ────────────────────────────────────────────────
-  { id: 'breaking-bad', name: 'Breaking Bad', years: '2008–13', eps: 62, min: 47 },
-  { id: 'better-call-saul', name: 'Better Call Saul', years: '2015–22', eps: 63, min: 46 },
-  { id: 'the-wire', name: 'The Wire', years: '2002–08', eps: 60, min: 57 },
-  { id: 'the-sopranos', name: 'The Sopranos', years: '1999–2007', eps: 86, min: 50 },
-  { id: 'mad-men', name: 'Mad Men', years: '2007–15', eps: 92, min: 47 },
-  { id: 'game-of-thrones', name: 'Game of Thrones', years: '2011–19', eps: 73, min: 57 },
-  { id: 'house-of-the-dragon', name: 'House of the Dragon', years: '2022–', eps: 18, min: 55 },
-  { id: 'succession', name: 'Succession', years: '2018–23', eps: 39, min: 60 },
-  { id: 'the-leftovers', name: 'The Leftovers', years: '2014–17', eps: 28, min: 55 },
-  { id: 'six-feet-under', name: 'Six Feet Under', years: '2001–05', eps: 63, min: 55 },
-  { id: 'deadwood', name: 'Deadwood', years: '2004–06', eps: 36, min: 55 },
-  { id: 'boardwalk-empire', name: 'Boardwalk Empire', years: '2010–14', eps: 56, min: 55 },
-  { id: 'the-americans', name: 'The Americans', years: '2013–18', eps: 75, min: 45 },
-  { id: 'mr-robot', name: 'Mr. Robot', years: '2015–19', eps: 45, min: 49 },
-  { id: 'ozark', name: 'Ozark', years: '2017–22', eps: 44, min: 55 },
-  { id: 'fargo', name: 'Fargo', years: '2014–24', eps: 51, min: 53 },
-  { id: 'true-detective', name: 'True Detective', years: '2014–24', eps: 30, min: 55 },
-  { id: 'westworld', name: 'Westworld', years: '2016–22', eps: 36, min: 58 },
-  { id: 'peaky-blinders', name: 'Peaky Blinders', years: '2013–22', eps: 36, min: 55 },
-  { id: 'the-crown', name: 'The Crown', years: '2016–23', eps: 60, min: 55 },
-  { id: 'narcos', name: 'Narcos', years: '2015–17', eps: 30, min: 49 },
-  { id: 'severance', name: 'Severance', years: '2022–', eps: 19, min: 50 },
-  { id: 'the-bear', name: 'The Bear', years: '2022–', eps: 38, min: 30 },
-  { id: 'the-white-lotus', name: 'The White Lotus', years: '2021–', eps: 21, min: 55 },
-  { id: 'the-last-of-us', name: 'The Last of Us', years: '2023–', eps: 16, min: 50 },
-  { id: 'andor', name: 'Andor', years: '2022–25', eps: 24, min: 45 },
-  { id: 'dark', name: 'Dark', years: '2017–20', eps: 26, min: 53 },
-  { id: 'stranger-things', name: 'Stranger Things', years: '2016–25', eps: 42, min: 55 },
-  { id: 'black-mirror', name: 'Black Mirror', years: '2011–', eps: 33, min: 55 },
-  { id: 'the-boys', name: 'The Boys', years: '2019–', eps: 32, min: 55 },
-  { id: 'the-handmaids-tale', name: "The Handmaid's Tale", years: '2017–25', eps: 66, min: 50 },
-  { id: 'homeland', name: 'Homeland', years: '2011–20', eps: 96, min: 50 },
-  { id: 'mindhunter', name: 'Mindhunter', years: '2017–19', eps: 19, min: 52 },
-  { id: 'big-little-lies', name: 'Big Little Lies', years: '2017–19', eps: 14, min: 50 },
-  { id: 'yellowstone', name: 'Yellowstone', years: '2018–24', eps: 53, min: 50 },
-  { id: 'wednesday', name: 'Wednesday', years: '2022–', eps: 16, min: 50 },
-  { id: 'money-heist', name: 'Money Heist', years: '2017–21', eps: 41, min: 50 },
-  { id: 'squid-game', name: 'Squid Game', years: '2021–25', eps: 22, min: 55 },
-  { id: 'shogun', name: 'Shōgun', years: '2024–', eps: 10, min: 55 },
-  { id: 'the-night-of', name: 'The Night Of', years: '2016', eps: 8, min: 58 },
-  { id: 'oz', name: 'Oz', years: '1997–2003', eps: 56, min: 55 },
-  { id: 'rome', name: 'Rome', years: '2005–07', eps: 22, min: 50 },
-  { id: 'vikings', name: 'Vikings', years: '2013–20', eps: 89, min: 44 },
-  { id: 'sons-of-anarchy', name: 'Sons of Anarchy', years: '2008–14', eps: 92, min: 45 },
-  { id: 'the-shield', name: 'The Shield', years: '2002–08', eps: 88, min: 45 },
-  { id: 'dexter', name: 'Dexter', years: '2006–13', eps: 96, min: 50 },
-  { id: 'lost', name: 'Lost', years: '2004–10', eps: 121, min: 43 },
-  { id: 'prison-break', name: 'Prison Break', years: '2005–17', eps: 90, min: 43 },
-  { id: 'house-md', name: 'House, M.D.', years: '2004–12', eps: 177, min: 44 },
-  { id: 'the-walking-dead', name: 'The Walking Dead', years: '2010–22', eps: 177, min: 44 },
-  { id: 'twenty-four', name: '24', years: '2001–14', eps: 204, min: 42 },
-  { id: 'the-west-wing', name: 'The West Wing', years: '1999–2006', eps: 154, min: 42 },
-  { id: 'gilmore-girls', name: 'Gilmore Girls', years: '2000–07', eps: 153, min: 44 },
-  { id: 'downton-abbey', name: 'Downton Abbey', years: '2010–15', eps: 52, min: 50 },
-  { id: 'broadchurch', name: 'Broadchurch', years: '2013–17', eps: 24, min: 48 },
-  { id: 'line-of-duty', name: 'Line of Duty', years: '2012–21', eps: 36, min: 57 },
-  { id: 'happy-valley', name: 'Happy Valley', years: '2014–23', eps: 18, min: 58 },
-  { id: 'slow-horses', name: 'Slow Horses', years: '2022–', eps: 30, min: 47 },
-  { id: 'sherlock', name: 'Sherlock', years: '2010–17', eps: 15, min: 88 },
-  { id: 'columbo', name: 'Columbo', years: '1968–2003', eps: 69, min: 75 },
-  { id: 'twin-peaks', name: 'Twin Peaks (incl. The Return)', years: '1990–2017', eps: 48, min: 47 },
-  { id: 'the-x-files', name: 'The X-Files', years: '1993–2018', eps: 218, min: 45 },
-  { id: 'buffy', name: 'Buffy the Vampire Slayer', years: '1997–2003', eps: 144, min: 44 },
-  { id: 'er', name: 'ER', years: '1994–2009', eps: 331, min: 44 },
-  { id: 'mash', name: 'M*A*S*H', years: '1972–83', eps: 256, min: 25 },
-  { id: 'the-twilight-zone', name: 'The Twilight Zone (1959)', years: '1959–64', eps: 156, min: 25 },
-
-  // ── Sci-fi & fantasy ──────────────────────────────────────────────
-  { id: 'the-expanse', name: 'The Expanse', years: '2015–22', eps: 62, min: 45 },
-  { id: 'battlestar-galactica', name: 'Battlestar Galactica', years: '2004–09', eps: 75, min: 44 },
-  { id: 'star-trek-tos', name: 'Star Trek: The Original Series', years: '1966–69', eps: 79, min: 50 },
-  { id: 'star-trek-tng', name: 'Star Trek: The Next Generation', years: '1987–94', eps: 178, min: 45 },
-  { id: 'star-trek-ds9', name: 'Star Trek: Deep Space Nine', years: '1993–99', eps: 176, min: 45 },
-  { id: 'doctor-who-2005', name: 'Doctor Who (2005–)', years: '2005–', eps: 180, min: 47 },
-  { id: 'supernatural', name: 'Supernatural', years: '2005–20', eps: 327, min: 42 },
-
-  // ── Miniseries ────────────────────────────────────────────────────
-  { id: 'chernobyl', name: 'Chernobyl', years: '2019', eps: 5, min: 62 },
-  { id: 'band-of-brothers', name: 'Band of Brothers', years: '2001', eps: 10, min: 60 },
-  { id: 'the-pacific', name: 'The Pacific', years: '2010', eps: 10, min: 52 },
-  { id: 'the-queens-gambit', name: "The Queen's Gambit", years: '2020', eps: 7, min: 55 },
-  { id: 'mare-of-easttown', name: 'Mare of Easttown', years: '2021', eps: 7, min: 58 },
-
-  // ── Comedy ────────────────────────────────────────────────────────
-  { id: 'the-office-us', name: 'The Office (US)', years: '2005–13', eps: 201, min: 22 },
-  { id: 'the-office-uk', name: 'The Office (UK)', years: '2001–03', eps: 14, min: 30 },
-  { id: 'parks-and-recreation', name: 'Parks and Recreation', years: '2009–15', eps: 125, min: 22 },
-  { id: 'friends', name: 'Friends', years: '1994–2004', eps: 236, min: 22 },
-  { id: 'seinfeld', name: 'Seinfeld', years: '1989–98', eps: 180, min: 22 },
-  { id: 'frasier', name: 'Frasier', years: '1993–2004', eps: 264, min: 22 },
-  { id: 'cheers', name: 'Cheers', years: '1982–93', eps: 275, min: 22 },
-  { id: 'how-i-met-your-mother', name: 'How I Met Your Mother', years: '2005–14', eps: 208, min: 22 },
-  { id: 'the-big-bang-theory', name: 'The Big Bang Theory', years: '2007–19', eps: 279, min: 20 },
-  { id: 'modern-family', name: 'Modern Family', years: '2009–20', eps: 250, min: 22 },
-  { id: 'brooklyn-nine-nine', name: 'Brooklyn Nine-Nine', years: '2013–21', eps: 153, min: 22 },
-  { id: 'community', name: 'Community', years: '2009–15', eps: 110, min: 22 },
-  { id: 'thirty-rock', name: '30 Rock', years: '2006–13', eps: 138, min: 22 },
-  { id: 'arrested-development', name: 'Arrested Development', years: '2003–19', eps: 84, min: 22 },
-  { id: 'its-always-sunny', name: "It's Always Sunny in Philadelphia", years: '2005–', eps: 172, min: 22 },
-  { id: 'curb-your-enthusiasm', name: 'Curb Your Enthusiasm', years: '2000–24', eps: 120, min: 30 },
-  { id: 'veep', name: 'Veep', years: '2012–19', eps: 65, min: 28 },
-  { id: 'silicon-valley', name: 'Silicon Valley', years: '2014–19', eps: 53, min: 28 },
-  { id: 'the-good-place', name: 'The Good Place', years: '2016–20', eps: 53, min: 22 },
-  { id: 'schitts-creek', name: "Schitt's Creek", years: '2015–20', eps: 80, min: 22 },
-  { id: 'ted-lasso', name: 'Ted Lasso', years: '2020–', eps: 34, min: 40 },
-  { id: 'atlanta', name: 'Atlanta', years: '2016–22', eps: 41, min: 30 },
-  { id: 'barry', name: 'Barry', years: '2018–23', eps: 32, min: 28 },
-  { id: 'fleabag', name: 'Fleabag', years: '2016–19', eps: 12, min: 26 },
-  { id: 'derry-girls', name: 'Derry Girls', years: '2018–22', eps: 19, min: 25 },
-  { id: 'wwdits', name: 'What We Do in the Shadows', years: '2019–24', eps: 61, min: 25 },
-  { id: 'only-murders', name: 'Only Murders in the Building', years: '2021–', eps: 40, min: 32 },
-  { id: 'malcolm-in-the-middle', name: 'Malcolm in the Middle', years: '2000–06', eps: 151, min: 22 },
-
-  // ── Western animation ─────────────────────────────────────────────
-  { id: 'bojack-horseman', name: 'BoJack Horseman', years: '2014–20', eps: 77, min: 25 },
-  { id: 'rick-and-morty', name: 'Rick and Morty', years: '2013–', eps: 81, min: 22 },
-  { id: 'futurama', name: 'Futurama', years: '1999–', eps: 150, min: 22 },
-  { id: 'the-simpsons', name: 'The Simpsons', years: '1989–', eps: 790, min: 22 },
-  { id: 'south-park', name: 'South Park', years: '1997–', eps: 330, min: 22 },
-  { id: 'family-guy', name: 'Family Guy', years: '1999–', eps: 440, min: 22 },
-  { id: 'archer', name: 'Archer', years: '2009–23', eps: 145, min: 22 },
-  { id: 'avatar-tla', name: 'Avatar: The Last Airbender', years: '2005–08', eps: 61, min: 23 },
-  { id: 'legend-of-korra', name: 'The Legend of Korra', years: '2012–14', eps: 52, min: 23 },
-  { id: 'gravity-falls', name: 'Gravity Falls', years: '2012–16', eps: 40, min: 23 },
-  { id: 'arcane', name: 'Arcane', years: '2021–24', eps: 18, min: 42 },
-  { id: 'invincible', name: 'Invincible', years: '2021–', eps: 24, min: 45 },
-
-  // ── Anime ─────────────────────────────────────────────────────────
-  { id: 'fmab', name: 'Fullmetal Alchemist: Brotherhood', years: '2009–10', eps: 64, min: 24 },
-  { id: 'cowboy-bebop', name: 'Cowboy Bebop', years: '1998–99', eps: 26, min: 24 },
-  { id: 'death-note', name: 'Death Note', years: '2006–07', eps: 37, min: 23 },
-  { id: 'steins-gate', name: 'Steins;Gate', years: '2011', eps: 24, min: 24 },
-  { id: 'code-geass', name: 'Code Geass', years: '2006–08', eps: 50, min: 24 },
-  { id: 'evangelion', name: 'Neon Genesis Evangelion', years: '1995–96', eps: 26, min: 24 },
-  { id: 'hunter-x-hunter', name: 'Hunter × Hunter (2011)', years: '2011–14', eps: 148, min: 23 },
-  { id: 'monster', name: 'Monster', years: '2004–05', eps: 74, min: 24 },
-  { id: 'vinland-saga', name: 'Vinland Saga', years: '2019–23', eps: 48, min: 24 },
-  { id: 'attack-on-titan', name: 'Attack on Titan', years: '2013–23', eps: 89, min: 25 },
-  { id: 'demon-slayer', name: 'Demon Slayer', years: '2019–', eps: 63, min: 24 },
-  { id: 'jujutsu-kaisen', name: 'Jujutsu Kaisen', years: '2020–', eps: 47, min: 24 },
-  { id: 'my-hero-academia', name: 'My Hero Academia', years: '2016–', eps: 159, min: 24 },
-  { id: 'one-punch-man', name: 'One-Punch Man', years: '2015–', eps: 36, min: 24 },
-  { id: 'mob-psycho-100', name: 'Mob Psycho 100', years: '2016–22', eps: 37, min: 24 },
-  { id: 'frieren', name: "Frieren: Beyond Journey's End", years: '2023–', eps: 28, min: 24 },
-  { id: 'spy-x-family', name: 'Spy × Family', years: '2022–', eps: 37, min: 24 },
-  { id: 'chainsaw-man', name: 'Chainsaw Man', years: '2022', eps: 12, min: 24 },
-  { id: 'naruto', name: 'Naruto', years: '2002–07', eps: 220, min: 23 },
-  { id: 'naruto-shippuden', name: 'Naruto: Shippuden', years: '2007–17', eps: 500, min: 23 },
-  { id: 'bleach', name: 'Bleach', years: '2004–12', eps: 366, min: 24 },
-  { id: 'dragon-ball', name: 'Dragon Ball', years: '1986–89', eps: 153, min: 24 },
-  { id: 'dragon-ball-z', name: 'Dragon Ball Z', years: '1989–96', eps: 291, min: 24 },
-  { id: 'detective-conan', name: 'Detective Conan (Case Closed)', years: '1996–', eps: 1150, min: 24 },
-  { id: 'pokemon', name: 'Pokémon (all series)', years: '1997–', eps: 1300, min: 22 },
-  { id: 'gintama', name: 'Gintama', years: '2006–18', eps: 367, min: 24 },
-  { id: 'fairy-tail', name: 'Fairy Tail', years: '2009–19', eps: 328, min: 24 },
-  { id: 'haikyuu', name: 'Haikyu!!', years: '2014–20', eps: 85, min: 24 },
-  { id: 'your-lie-in-april', name: 'Your Lie in April', years: '2014–15', eps: 22, min: 23 },
-  { id: 'erased', name: 'Erased', years: '2016', eps: 12, min: 23 },
-  { id: 'devilman-crybaby', name: 'Devilman Crybaby', years: '2018', eps: 10, min: 25 },
-  { id: 'cyberpunk-edgerunners', name: 'Cyberpunk: Edgerunners', years: '2022', eps: 10, min: 25 },
-  { id: 'delicious-in-dungeon', name: 'Delicious in Dungeon', years: '2024–', eps: 24, min: 24 },
-  { id: 'solo-leveling', name: 'Solo Leveling', years: '2024–', eps: 25, min: 24 },
-  { id: 'kaguya-sama', name: 'Kaguya-sama: Love Is War', years: '2019–22', eps: 37, min: 24 },
-  { id: 'apothecary-diaries', name: 'The Apothecary Diaries', years: '2023–', eps: 48, min: 24 },
-  { id: 'jojos', name: "JoJo's Bizarre Adventure", years: '2012–', eps: 190, min: 24 },
-
-  // ── Documentary ───────────────────────────────────────────────────
-  { id: 'planet-earth', name: 'Planet Earth I + II', years: '2006–16', eps: 17, min: 50 },
-  { id: 'blue-planet', name: 'The Blue Planet I + II', years: '2001–17', eps: 15, min: 50 },
-  { id: 'cosmos', name: 'Cosmos (2014 + 2020)', years: '2014–20', eps: 26, min: 44 },
-];
-
-// Preset packs — one click adds the whole set.
+// Preset packs — one click adds the whole set. Ids are IMDb tconsts.
 export const PACKS = [
-  { id: 'prestige', label: 'Prestige TV starter pack', shows: ['breaking-bad', 'the-wire', 'the-sopranos', 'mad-men', 'succession'] },
-  { id: 'anime-classics', label: 'Anime classics', shows: ['fmab', 'cowboy-bebop', 'death-note', 'steins-gate', 'evangelion'] },
-  { id: 'sitcom-marathon', label: 'Sitcom marathon', shows: ['the-office-us', 'parks-and-recreation', 'seinfeld', 'thirty-rock', 'community'] },
-  { id: 'weekend-minis', label: 'Weekend miniseries', shows: ['chernobyl', 'band-of-brothers', 'the-queens-gambit', 'fleabag', 'mare-of-easttown'] },
-  { id: 'fellow-giants', label: 'Fellow giants', shows: ['the-simpsons', 'supernatural', 'detective-conan', 'doctor-who-2005', 'naruto-shippuden'] },
+  {
+    id: 'prestige',
+    label: 'Prestige TV starter pack',
+    shows: ['tt0903747', 'tt0306414', 'tt0141842', 'tt0804503', 'tt7660850'],
+    // Breaking Bad, The Wire, The Sopranos, Mad Men, Succession
+  },
+  {
+    id: 'anime-classics',
+    label: 'Anime classics',
+    shows: ['tt1355642', 'tt0213338', 'tt0877057', 'tt1910272', 'tt0112159'],
+    // FMA: Brotherhood, Cowboy Bebop, Death Note, Steins;Gate, Evangelion
+  },
+  {
+    id: 'sitcom-marathon',
+    label: 'Sitcom marathon',
+    shows: ['tt0386676', 'tt1266020', 'tt0098904', 'tt0496424', 'tt1439629'],
+    // The Office (US), Parks and Rec, Seinfeld, 30 Rock, Community
+  },
+  {
+    id: 'weekend-minis',
+    label: 'Weekend miniseries',
+    shows: ['tt7366338', 'tt0185906', 'tt10048342', 'tt5687612', 'tt10155688'],
+    // Chernobyl, Band of Brothers, The Queen's Gambit, Fleabag, Mare of Easttown
+  },
+  {
+    id: 'fellow-giants',
+    label: 'Fellow giants',
+    shows: ['tt0096697', 'tt0460681', 'tt0131179', 'tt0436992', 'tt0988824'],
+    // The Simpsons, Supernatural, Detective Conan, Doctor Who (2005), Naruto: Shippuden
+  },
 ];
 
 export function findShow(id) {
